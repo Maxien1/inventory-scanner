@@ -119,6 +119,7 @@
     outline: none;
     width: 100%;
     -webkit-appearance: none;
+    appearance: none;
     transition: border-color 0.2s;
   }
 
@@ -492,6 +493,7 @@
     padding: 10px;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
   }
 
   .max-hint {
@@ -781,29 +783,8 @@ function doPost(e) {
     </div>
   </div>
 
-  <!-- Google Script URL -->
-  <div class="setup-card">
-    <h3>Google Apps Script URL</h3>
-    <div class="input-group">
-      <label>Web App URL</label>
-      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." autocomplete="off" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="hint">Paste the URL from your Apps Script deployment here.</div>
-  </div>
-
-  <!-- Barcode Map -->
-  <div class="setup-card">
-    <h3>Barcode → Paper Map</h3>
-    <div class="hint" style="margin-bottom:4px;">Scan each roll, note its barcode, then fill in below. Format: one per line as <strong>BARCODE|Paper Name|Section|Max</strong></div>
-    <div class="input-group">
-      <label>Barcode Mappings</label>
-      <textarea id="barcodeMap" placeholder="012345678901|Universal (20 lb)|24|2&#10;012345678902|Super / Heavyweight|24|2&#10;012345678903|Photo Gloss|24|2"></textarea>
-    </div>
-    <div class="hint">Section = 24, 36, or BP &nbsp;·&nbsp; Max = max rolls you stock</div>
-  </div>
-
   <button class="btn btn-primary" onclick="saveSetup()">
-    ✓ &nbsp; Save & Start Scanning
+    ✓ &nbsp; Start Scanning
   </button>
 
   <!-- Skip for demo -->
@@ -863,27 +844,26 @@ function doPost(e) {
       <div class="register-label">Which paper is this?</div>
       <select class="register-select" id="registerSelect" onchange="onRegisterSelectChange()">
         <option value="">— Select paper type —</option>
+        <optgroup label="Blueprint Paper (Max: 4)">
+          <option value="20 lb Bond (24&quot;)|BP|4">20 lb Bond (24″)</option>
+          <option value="20 lb Bond (36&quot;)|BP|4">20 lb Bond (36″)</option>
+        </optgroup>
         <optgroup label="24″ Rolls (Max: 2)">
-          <option value="Universal (20 lb)|24|2">Universal (20 lb) — 24″</option>
-          <option value="Super / Heavyweight|24|2">Super / Heavyweight — 24″</option>
-          <option value="Photo Gloss|24|2">Photo Gloss — 24″</option>
-          <option value="Photo Satin (Semi-Gloss)|24|2">Photo Satin (Semi-Gloss) — 24″</option>
-          <option value="Matte Polypropylene|24|2">Matte Polypropylene — 24″</option>
-          <option value="Scrim Vinyl|24|2">Scrim Vinyl — 24″</option>
-          <option value="Wrapping Paper|24|2">Wrapping Paper — 24″</option>
+          <option value="Universal Heavyweight|24|2">Universal Heavyweight</option>
+          <option value="Super Heavyweight|24|2">Super Heavyweight</option>
+          <option value="Photo Gloss|24|2">Photo Gloss</option>
+          <option value="Photo Satin|24|2">Photo Satin</option>
+          <option value="Matte Polypropylene|24|2">Matte Polypropylene</option>
+          <option value="Scrim Vinyl|24|2">Scrim Vinyl</option>
         </optgroup>
         <optgroup label="36″ Rolls (Max: 4)">
-          <option value="Universal (20 lb)|36|4">Universal (20 lb) — 36″</option>
-          <option value="Super / Heavyweight|36|4">Super / Heavyweight — 36″</option>
-          <option value="Photo Gloss|36|4">Photo Gloss — 36″</option>
-          <option value="Photo Satin (Semi-Gloss)|36|4">Photo Satin (Semi-Gloss) — 36″</option>
-          <option value="Matte Polypropylene|36|4">Matte Polypropylene — 36″</option>
-          <option value="Scrim Vinyl|36|4">Scrim Vinyl — 36″</option>
-          <option value="Wrapping Paper|36|4">Wrapping Paper — 36″</option>
-        </optgroup>
-        <optgroup label="Blueprint Paper (Max: 4)">
-          <option value="Blueprint 24&quot;|BP|4">Blueprint — 24″</option>
-          <option value="Blueprint 36&quot;|BP|4">Blueprint — 36″</option>
+          <option value="Universal Heavyweight|36|4">Universal Heavyweight</option>
+          <option value="Super Heavyweight|36|4">Super Heavyweight</option>
+          <option value="Photo Gloss|36|4">Photo Gloss</option>
+          <option value="Photo Satin|36|4">Photo Satin</option>
+          <option value="Matte Polypropylene|36|4">Matte Polypropylene</option>
+          <option value="Scrim Vinyl|36|4">Scrim Vinyl</option>
+          <option value="Wrapping Paper (30&quot;)|36|4">Wrapping Paper (30″)</option>
         </optgroup>
       </select>
     </div>
@@ -942,9 +922,10 @@ function doPost(e) {
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STATE ────────────────────────────────────────
+// ── APPS SCRIPT URL — update this if you redeploy ──────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzWkPMqaTGhTZrxUlQONpVZfdxxrSigrqHTk5cp3JLi7cKsot_NrFwUa3pHVChMGK9U1w/exec';
+
 let state = {
-  scriptUrl: '',
   barcodeMap: [], // [{barcode, name, section, max}]
   currentPaper: null,
   scannedBarcode: '',
@@ -952,80 +933,47 @@ let state = {
 
 // ── DEMO DATA ────────────────────────────────────
 const DEMO_BARCODES = [
-  { barcode: '012345000001', name: 'Universal (20 lb)', section: '24', max: 2 },
-  { barcode: '012345000002', name: 'Super / Heavyweight', section: '24', max: 2 },
-  { barcode: '012345000003', name: 'Photo Gloss', section: '24', max: 2 },
-  { barcode: '012345000004', name: 'Photo Satin (Semi-Gloss)', section: '24', max: 2 },
-  { barcode: '012345000005', name: 'Matte Polypropylene', section: '24', max: 2 },
-  { barcode: '012345000006', name: 'Scrim Vinyl', section: '24', max: 2 },
-  { barcode: '012345000007', name: 'Wrapping Paper', section: '24', max: 2 },
-  { barcode: '012345000011', name: 'Universal (20 lb)', section: '36', max: 4 },
-  { barcode: '012345000012', name: 'Super / Heavyweight', section: '36', max: 4 },
-  { barcode: '012345000013', name: 'Photo Gloss', section: '36', max: 4 },
-  { barcode: '012345000014', name: 'Photo Satin (Semi-Gloss)', section: '36', max: 4 },
-  { barcode: '012345000015', name: 'Matte Polypropylene', section: '36', max: 4 },
-  { barcode: '012345000016', name: 'Scrim Vinyl', section: '36', max: 4 },
-  { barcode: '012345000017', name: 'Wrapping Paper', section: '36', max: 4 },
-  { barcode: '012345000021', name: 'Blueprint 24"', section: 'BP', max: 4 },
-  { barcode: '012345000022', name: 'Blueprint 36"', section: 'BP', max: 4 },
+  { barcode: '012345000001', name: 'Universal Heavyweight',  section: '24', max: 2 },
+  { barcode: '012345000002', name: 'Super Heavyweight',      section: '24', max: 2 },
+  { barcode: '012345000003', name: 'Photo Gloss',            section: '24', max: 2 },
+  { barcode: '012345000004', name: 'Photo Satin',            section: '24', max: 2 },
+  { barcode: '012345000005', name: 'Matte Polypropylene',    section: '24', max: 2 },
+  { barcode: '012345000006', name: 'Scrim Vinyl',            section: '24', max: 2 },
+  { barcode: '012345000011', name: 'Universal Heavyweight',  section: '36', max: 4 },
+  { barcode: '012345000012', name: 'Super Heavyweight',      section: '36', max: 4 },
+  { barcode: '012345000013', name: 'Photo Gloss',            section: '36', max: 4 },
+  { barcode: '012345000014', name: 'Photo Satin',            section: '36', max: 4 },
+  { barcode: '012345000015', name: 'Matte Polypropylene',    section: '36', max: 4 },
+  { barcode: '012345000016', name: 'Scrim Vinyl',            section: '36', max: 4 },
+  { barcode: '012345000017', name: 'Wrapping Paper (30")',   section: '36', max: 4 },
+  { barcode: '012345000021', name: '20 lb Bond (24")',       section: 'BP', max: 4 },
+  { barcode: '012345000022', name: '20 lb Bond (36")',       section: 'BP', max: 4 },
 ];
 
 // ── PERSIST ──────────────────────────────────────
 function saveToStorage() {
-  localStorage.setItem('wf_scriptUrl', state.scriptUrl);
+  // scriptUrl is hardcoded — only save barcode mappings
   localStorage.setItem('wf_barcodeMap', JSON.stringify(state.barcodeMap));
 }
 
 function loadFromStorage() {
-  const url = localStorage.getItem('wf_scriptUrl');
+  // Load any saved barcode mappings from previous sessions
   const map = localStorage.getItem('wf_barcodeMap');
-  if (url) {
-    state.scriptUrl = url;
-    document.getElementById('scriptUrl').value = url;
-  }
   if (map) {
-    state.barcodeMap = JSON.parse(map);
-    // Populate textarea
-    const lines = state.barcodeMap.map(b => `${b.barcode}|${b.name}|${b.section}|${b.max}`).join('\n');
-    document.getElementById('barcodeMap').value = lines;
+    try { state.barcodeMap = JSON.parse(map); } catch(e) { state.barcodeMap = []; }
   }
-  // Auto-start if configured
-  if (url && state.barcodeMap.length > 0) {
-    showScreen('scanScreen');
-    startCamera();
-  }
+  // Go straight to scanner — URL is hardcoded
+  showScreen('scanScreen');
+  startCamera();
 }
 
 // ── SETUP ────────────────────────────────────────
 function saveSetup() {
-  const url = document.getElementById('scriptUrl').value.trim();
-  const mapText = document.getElementById('barcodeMap').value.trim();
-
-  if (!url) { showToast('Please enter your Apps Script URL'); return; }
-
-  const lines = mapText.split('\n').filter(l => l.trim());
-  const map = [];
-  for (const line of lines) {
-    const parts = line.split('|');
-    if (parts.length < 3) continue;
-    map.push({
-      barcode: parts[0].trim(),
-      name: parts[1].trim(),
-      section: parts[2].trim(),
-      max: parseInt(parts[3]) || 2,
-    });
-  }
-
-  state.scriptUrl = url;
-  state.barcodeMap = map;
-  saveToStorage();
-
   showScreen('scanScreen');
   startCamera();
 }
 
 function loadDemo() {
-  state.scriptUrl = 'DEMO';
   state.barcodeMap = DEMO_BARCODES;
   showScreen('scanScreen');
   startCamera();
@@ -1192,7 +1140,8 @@ async function saveQty() {
   saveBtn.textContent = '⏳  Saving…';
   saveBtn.disabled = true;
 
-  if (state.scriptUrl === 'DEMO') {
+  // Demo mode: barcode starts with 012345 (fake)
+  if (paper.barcode.startsWith('012345')) {
     await new Promise(r => setTimeout(r, 800));
     showSuccess(paper.name, qty);
     saveBtn.textContent = '↑  Update Google Sheet';
@@ -1201,7 +1150,7 @@ async function saveQty() {
   }
 
   try {
-    const response = await fetch(state.scriptUrl, {
+    const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({ barcode: paper.barcode, name: paper.name, qty }),
       headers: { 'Content-Type': 'application/json' },
@@ -1217,7 +1166,7 @@ async function saveQty() {
     }
   } catch (err) {
     console.error(err);
-    showToast('⚠ Connection error. Check your Apps Script URL.');
+    showToast('⚠ Connection error. Check your network.');
   }
 
   saveBtn.textContent = '↑  Update Google Sheet';
@@ -1268,22 +1217,21 @@ function registerBarcode() {
 
 
 const MASTER_PAPERS = [
-  { name: 'Universal (20 lb)',        section: '24', max: 2 },
-  { name: 'Super / Heavyweight',      section: '24', max: 2 },
-  { name: 'Photo Gloss',              section: '24', max: 2 },
-  { name: 'Photo Satin (Semi-Gloss)', section: '24', max: 2 },
-  { name: 'Matte Polypropylene',      section: '24', max: 2 },
-  { name: 'Scrim Vinyl',              section: '24', max: 2 },
-  { name: 'Wrapping Paper',           section: '24', max: 2 },
-  { name: 'Universal (20 lb)',        section: '36', max: 4 },
-  { name: 'Super / Heavyweight',      section: '36', max: 4 },
-  { name: 'Photo Gloss',              section: '36', max: 4 },
-  { name: 'Photo Satin (Semi-Gloss)', section: '36', max: 4 },
-  { name: 'Matte Polypropylene',      section: '36', max: 4 },
-  { name: 'Scrim Vinyl',              section: '36', max: 4 },
-  { name: 'Wrapping Paper',           section: '36', max: 4 },
-  { name: 'Blueprint 24"',            section: 'BP', max: 4 },
-  { name: 'Blueprint 36"',            section: 'BP', max: 4 },
+  { name: '20 lb Bond (24")',      section: 'BP', max: 4 },
+  { name: '20 lb Bond (36")',      section: 'BP', max: 4 },
+  { name: 'Universal Heavyweight', section: '24', max: 2 },
+  { name: 'Super Heavyweight',     section: '24', max: 2 },
+  { name: 'Photo Gloss',           section: '24', max: 2 },
+  { name: 'Photo Satin',           section: '24', max: 2 },
+  { name: 'Matte Polypropylene',   section: '24', max: 2 },
+  { name: 'Scrim Vinyl',           section: '24', max: 2 },
+  { name: 'Universal Heavyweight', section: '36', max: 4 },
+  { name: 'Super Heavyweight',     section: '36', max: 4 },
+  { name: 'Photo Gloss',           section: '36', max: 4 },
+  { name: 'Photo Satin',           section: '36', max: 4 },
+  { name: 'Matte Polypropylene',   section: '36', max: 4 },
+  { name: 'Scrim Vinyl',           section: '36', max: 4 },
+  { name: 'Wrapping Paper (30")',  section: '36', max: 4 },
 ];
 
 function showManual() {
@@ -1293,9 +1241,9 @@ function showManual() {
   list.innerHTML = '';
 
   const sections = [
-    { key: '24', label: '24″ Rolls', tagClass: 'tag-24' },
-    { key: '36', label: '36″ Rolls', tagClass: 'tag-36' },
     { key: 'BP', label: 'Blueprint Paper', tagClass: 'tag-bp' },
+    { key: '24', label: '24″ Rolls',       tagClass: 'tag-24' },
+    { key: '36', label: '36″ Rolls',       tagClass: 'tag-36' },
   ];
 
   for (const sec of sections) {
