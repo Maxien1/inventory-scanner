@@ -119,7 +119,6 @@
     outline: none;
     width: 100%;
     -webkit-appearance: none;
-    appearance: none;
     transition: border-color 0.2s;
   }
 
@@ -493,7 +492,6 @@
     padding: 10px;
     outline: none;
     -webkit-appearance: none;
-    appearance: none;
   }
 
   .max-hint {
@@ -743,30 +741,33 @@
       <div class="code-block">const SHEET_NAME = "Inventory";
 
 function doPost(e) {
-  const data = JSON.parse(e.postData.contents);
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAME);
-  const values = sheet.getDataRange().getValues();
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME);
+    const values = sheet.getDataRange().getValues();
 
-  for (let r = 0; r < values.length; r++) {
-    for (let c = 0; c < values[r].length; c++) {
-      const cell = String(values[r][c]);
-      if (cell.includes(data.barcode) || cell === data.barcode) {
-        // Qty is in column D (index 3)
-        sheet.getRange(r + 1, 4).setValue(data.qty);
-        return ContentService
-          .createTextOutput(JSON.stringify({
-            status: "ok",
-            paper: cell,
-            row: r + 1
-          }))
-          .setMimeType(ContentService.MimeType.JSON);
+    for (let r = 0; r < values.length; r++) {
+      for (let c = 0; c < values[r].length; c++) {
+        const cell = String(values[r][c]).trim();
+        const searchName = String(data.name || '').trim();
+        // Match by paper name (column B contains the paper name)
+        if (cell === searchName || cell.includes(searchName)) {
+          sheet.getRange(r + 1, 4).setValue(data.qty);
+          return ContentService
+            .createTextOutput(JSON.stringify({ status: "ok", row: r + 1 }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
       }
     }
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "not_found" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService
-    .createTextOutput(JSON.stringify({ status: "not_found" }))
-    .setMimeType(ContentService.MimeType.JSON);
 }</div>
       <div class="step">
         <div class="step-num">3</div>
@@ -922,9 +923,10 @@ function doPost(e) {
 <div class="toast" id="toast"></div>
 
 <script>
-// ── APPS SCRIPT URL — update this if you redeploy ──────────
+// ── CONFIG ───────────────────────────────────────
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzWkPMqaTGhTZrxUlQONpVZfdxxrSigrqHTk5cp3JLi7cKsot_NrFwUa3pHVChMGK9U1w/exec';
 
+// ── STATE ────────────────────────────────────────
 let state = {
   barcodeMap: [], // [{barcode, name, section, max}]
   currentPaper: null,
@@ -1150,23 +1152,28 @@ async function saveQty() {
   }
 
   try {
+    // Google Apps Script requires text/plain to avoid CORS preflight rejection
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({ barcode: paper.barcode, name: paper.name, qty }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       redirect: 'follow',
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result;
+    try { result = JSON.parse(text); } catch { result = { status: 'error' }; }
 
     if (result.status === 'ok') {
       showSuccess(paper.name, qty);
+    } else if (result.status === 'not_found') {
+      showToast('⚠ Paper not found in sheet — check the paper name matches exactly.');
     } else {
-      showToast('⚠ Paper not found in sheet. Check barcode map.');
+      showToast('⚠ Sheet returned an error. Try redeploying Apps Script.');
     }
   } catch (err) {
     console.error(err);
-    showToast('⚠ Connection error. Check your network.');
+    showToast('⚠ Connection error — make sure Apps Script is deployed as "Anyone" can access.');
   }
 
   saveBtn.textContent = '↑  Update Google Sheet';
