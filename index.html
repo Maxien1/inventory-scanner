@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>WF Inventory Scanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f0f0f;
+    --surface:  #1a1a1a;
+    --card:     #242424;
+    --border:   #333333;
+    --accent:   #4A90E2;
+    --green:    #27AE60;
+    --yellow:   #F39C12;
+    --red:      #E74C3C;
+    --text:     #f0f0f0;
+    --muted:    #888888;
+    --radius:   16px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen.active { display: flex; }
+
+  /* ── SETUP SCREEN ── */
+  #setupScreen {
+    padding: 48px 24px 32px;
+    gap: 20px;
+    justify-content: flex-start;
+  }
+
+  .setup-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .setup-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .setup-sub {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .setup-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .setup-card h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .input-group input, .input-group textarea {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    width: 100%;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-group input:focus, .input-group textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .input-group textarea {
+    font-size: 12px;
+    resize: none;
+    height: 110px;
+    font-family: 'Courier New', monospace;
+  }
+
+  .hint {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .hint a { color: var(--accent); text-decoration: none; }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 16px 20px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s, transform 0.1s;
+    width: 100%;
+  }
+
+  .btn:active { opacity: 0.8; transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-green   { background: var(--green);  color: white; }
+  .btn-ghost   { background: var(--card);   color: var(--text); border: 1.5px solid var(--border); }
+  .btn-red     { background: var(--red);    color: white; }
+
+  /* instructions accordion */
+  .accordion {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .accordion-header {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .accordion-arrow { transition: transform 0.2s; font-size: 12px; color: var(--muted); }
+  .accordion.open .accordion-arrow { transform: rotate(180deg); }
+
+  .accordion-body {
+    display: none;
+    padding: 0 16px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .accordion.open .accordion-body { display: block; }
+
+  .step {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .step-num {
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .code-block {
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #7ec8e3;
+    margin: 8px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* ── SCANNER SCREEN ── */
+  #scanScreen {
+    position: relative;
+    overflow: hidden;
+  }
+
+  #cameraView {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  #cameraView video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* QuaggaJS canvas overlay */
+  #cameraView canvas {
+    display: none;
+  }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .scan-frame {
+    width: 260px;
+    height: 160px;
+    position: relative;
+  }
+
+  .scan-frame::before, .scan-frame::after,
+  .scan-frame .c3, .scan-frame .c4 {
+    content: '';
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: white;
+    border-style: solid;
+  }
+
+  .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .scan-frame .c3     { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .scan-frame .c4     { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+  .scan-line {
+    position: absolute;
+    left: 8px; right: 8px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanline 2s ease-in-out infinite;
+  }
+
+  @keyframes scanline {
+    0%   { top: 10px; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: 148px; opacity: 0; }
+  }
+
+  .scan-hint-text {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 24px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+    letter-spacing: 0.03em;
+  }
+
+  .scan-top-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 52px 20px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .scan-title-bar {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.04em;
+  }
+
+  .icon-btn {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(6px);
+    border: none;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .scan-bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 16px 20px 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+  }
+
+  .manual-btn {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 14px;
+    color: white;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
+  }
+
+  /* ── CONFIRM SCREEN ── */
+  #confirmScreen {
+    padding: 52px 20px 40px;
+    gap: 16px;
+  }
+
+  .confirm-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    margin-bottom: 4px;
+  }
+
+  .confirm-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .confirm-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .confirm-paper {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  .confirm-barcode {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: monospace;
+  }
+
+  .confirm-section-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 10px;
+  }
+
+  .tag-24 { background: #1A3C5E33; color: #4A90E2; border: 1px solid #1A3C5E; }
+  .tag-36 { background: #2D6A4F33; color: #27AE60; border: 1px solid #2D6A4F; }
+  .tag-bp { background: #5C3C0033; color: #F39C12; border: 1px solid #5C3C00; }
+
+  .qty-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .qty-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .qty-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .qty-stepper {
+    background: var(--surface);
+    border: none;
+    border-radius: 12px;
+    width: 52px;
+    height: 52px;
+    font-size: 26px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+
+  .qty-input {
+    flex: 1;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+    padding: 10px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .max-hint {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .status-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+
+  .status-ok     { background: #27AE6022; color: var(--green); }
+  .status-low    { background: #F39C1222; color: var(--yellow); }
+  .status-empty  { background: #E74C3C22; color: var(--red); }
+  .status-none   { background: var(--surface); color: var(--muted); }
+
+  /* ── SUCCESS SCREEN ── */
+  #successScreen {
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  .success-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes pop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  .success-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+  }
+
+  .success-detail {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── MANUAL SCREEN ── */
+  #manualScreen {
+    padding: 52px 20px 40px;
+    gap: 16px;
+  }
+
+  .paper-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .paper-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s;
+  }
+
+  .paper-item:active { border-color: var(--accent); }
+
+  .paper-item-name {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    flex: 1;
+  }
+
+  .paper-item-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+
+  .section-divider {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 4px 0;
+  }
+
+  /* ── UNKNOWN BARCODE ── */
+  .unknown-card {
+    background: #E74C3C18;
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .unknown-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--red);
+  }
+
+  .unknown-code {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--surface);
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SETUP SCREEN                                  -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="setupScreen" class="screen active">
+  <div class="setup-logo">Wide Format Printer</div>
+  <div class="setup-title">Inventory Scanner</div>
+  <div class="setup-sub">Connect to your Google Sheet to get started.</div>
+
+  <!-- Instructions -->
+  <div class="accordion" id="instructionAccordion">
+    <div class="accordion-header" onclick="toggleAccordion()">
+      <span>📋 How to connect your Google Sheet</span>
+      <span class="accordion-arrow">▼</span>
+    </div>
+    <div class="accordion-body">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>Open your Google Sheet, then go to <strong>Extensions → Apps Script</strong></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>Delete any existing code, then paste this entire script:</div>
+      </div>
+      <div class="code-block">const SHEET_NAME = "Inventory";
+
+function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME);
+  const values = sheet.getDataRange().getValues();
+
+  for (let r = 0; r < values.length; r++) {
+    for (let c = 0; c < values[r].length; c++) {
+      const cell = String(values[r][c]);
+      if (cell.includes(data.barcode) || cell === data.barcode) {
+        // Qty is in column D (index 3)
+        sheet.getRange(r + 1, 4).setValue(data.qty);
+        return ContentService
+          .createTextOutput(JSON.stringify({
+            status: "ok",
+            paper: cell,
+            row: r + 1
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: "not_found" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}</div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>Click <strong>Deploy → New deployment</strong>. Set type to <strong>Web app</strong>, set "Who has access" to <strong>Anyone</strong>, then click <strong>Deploy</strong>.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>Copy the <strong>Web app URL</strong> it gives you and paste it below.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div>Add your paper barcodes below — scan each roll and note the number on the packaging, then enter them in the barcode table.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Script URL -->
+  <div class="setup-card">
+    <h3>Google Apps Script URL</h3>
+    <div class="input-group">
+      <label>Web App URL</label>
+      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="hint">Paste the URL from your Apps Script deployment here.</div>
+  </div>
+
+  <!-- Barcode Map -->
+  <div class="setup-card">
+    <h3>Barcode → Paper Map</h3>
+    <div class="hint" style="margin-bottom:4px;">Scan each roll, note its barcode, then fill in below. Format: one per line as <strong>BARCODE|Paper Name|Section|Max</strong></div>
+    <div class="input-group">
+      <label>Barcode Mappings</label>
+      <textarea id="barcodeMap" placeholder="012345678901|Universal (20 lb)|24|2&#10;012345678902|Super / Heavyweight|24|2&#10;012345678903|Photo Gloss|24|2"></textarea>
+    </div>
+    <div class="hint">Section = 24, 36, or BP &nbsp;·&nbsp; Max = max rolls you stock</div>
+  </div>
+
+  <button class="btn btn-primary" onclick="saveSetup()">
+    ✓ &nbsp; Save & Start Scanning
+  </button>
+
+  <!-- Skip for demo -->
+  <button class="btn btn-ghost" onclick="loadDemo()">
+    Try Demo (no Google Sheet)
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SCAN SCREEN                                   -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="scanScreen" class="screen">
+  <div id="cameraView"></div>
+
+  <div class="scan-overlay">
+    <div class="scan-frame">
+      <div class="c3"></div><div class="c4"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-hint-text">Point camera at barcode</div>
+  </div>
+
+  <div class="scan-top-bar">
+    <div class="scan-title-bar">Scan Barcode</div>
+    <button class="icon-btn" onclick="goToSetup()">⚙️</button>
+  </div>
+
+  <div class="scan-bottom-bar">
+    <button class="manual-btn" onclick="showManual()">
+      📋 &nbsp; Select Paper Manually
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- CONFIRM / QUANTITY SCREEN                     -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="confirmScreen" class="screen">
+  <div class="confirm-back" onclick="backToScan()">← Back to Scanner</div>
+
+  <div class="confirm-card">
+    <div class="confirm-label">Paper Identified</div>
+    <div class="confirm-paper" id="confirmPaperName">—</div>
+    <div class="confirm-barcode" id="confirmBarcode"></div>
+    <div id="confirmTag" class="confirm-section-tag tag-24">24″ Roll</div>
+  </div>
+
+  <!-- Unknown barcode -->
+  <div class="unknown-card" id="unknownCard" style="display:none;">
+    <div class="unknown-title">⚠ Barcode Not Recognized</div>
+    <div id="unknownCode" class="unknown-code"></div>
+    <div style="font-size:13px;color:var(--muted);">Add this barcode to your setup, or select the paper manually.</div>
+    <button class="btn btn-ghost" style="margin-top:4px;" onclick="showManual()">Select Manually</button>
+  </div>
+
+  <div class="qty-section" id="qtySection">
+    <div class="qty-label">Set Quantity on Hand</div>
+    <div class="qty-controls">
+      <button class="qty-stepper" onclick="changeQty(-1)">−</button>
+      <input type="number" class="qty-input" id="qtyInput" value="0" min="0" max="99"
+        inputmode="numeric" oninput="updateStatusPreview()">
+      <button class="qty-stepper" onclick="changeQty(1)">+</button>
+    </div>
+    <div class="max-hint" id="maxHint">Max capacity: —</div>
+    <div class="status-preview status-none" id="statusPreview">Enter quantity above</div>
+  </div>
+
+  <button class="btn btn-green" id="saveBtn" onclick="saveQty()">
+    ↑ &nbsp; Update Google Sheet
+  </button>
+
+  <button class="btn btn-ghost" onclick="backToScan()">Cancel</button>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SUCCESS SCREEN                                -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="successScreen" class="screen">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Sheet Updated!</div>
+  <div class="success-detail" id="successDetail">
+    Quantity saved successfully.
+  </div>
+  <button class="btn btn-primary" onclick="backToScan()" style="width:100%;max-width:320px;">
+    Scan Another
+  </button>
+  <button class="btn btn-ghost" onclick="goToSetup()" style="width:100%;max-width:320px;">
+    Settings
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MANUAL SELECT SCREEN                          -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="manualScreen" class="screen">
+  <div class="confirm-back" onclick="backToScan()">← Back to Scanner</div>
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px;">Select Paper</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Tap to choose paper type manually</div>
+  <div class="paper-list" id="paperList"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ────────────────────────────────────────
+let state = {
+  scriptUrl: '',
+  barcodeMap: [], // [{barcode, name, section, max}]
+  currentPaper: null,
+  scannedBarcode: '',
+};
+
+// ── DEMO DATA ────────────────────────────────────
+const DEMO_BARCODES = [
+  { barcode: '012345000001', name: 'Universal (20 lb)', section: '24', max: 2 },
+  { barcode: '012345000002', name: 'Super / Heavyweight', section: '24', max: 2 },
+  { barcode: '012345000003', name: 'Photo Gloss', section: '24', max: 2 },
+  { barcode: '012345000004', name: 'Photo Satin (Semi-Gloss)', section: '24', max: 2 },
+  { barcode: '012345000005', name: 'Matte Polypropylene', section: '24', max: 2 },
+  { barcode: '012345000006', name: 'Scrim Vinyl', section: '24', max: 2 },
+  { barcode: '012345000007', name: 'Wrapping Paper', section: '24', max: 2 },
+  { barcode: '012345000011', name: 'Universal (20 lb)', section: '36', max: 4 },
+  { barcode: '012345000012', name: 'Super / Heavyweight', section: '36', max: 4 },
+  { barcode: '012345000013', name: 'Photo Gloss', section: '36', max: 4 },
+  { barcode: '012345000014', name: 'Photo Satin (Semi-Gloss)', section: '36', max: 4 },
+  { barcode: '012345000015', name: 'Matte Polypropylene', section: '36', max: 4 },
+  { barcode: '012345000016', name: 'Scrim Vinyl', section: '36', max: 4 },
+  { barcode: '012345000017', name: 'Wrapping Paper', section: '36', max: 4 },
+  { barcode: '012345000021', name: 'Blueprint 24"', section: 'BP', max: 4 },
+  { barcode: '012345000022', name: 'Blueprint 36"', section: 'BP', max: 4 },
+];
+
+// ── PERSIST ──────────────────────────────────────
+function saveToStorage() {
+  localStorage.setItem('wf_scriptUrl', state.scriptUrl);
+  localStorage.setItem('wf_barcodeMap', JSON.stringify(state.barcodeMap));
+}
+
+function loadFromStorage() {
+  const url = localStorage.getItem('wf_scriptUrl');
+  const map = localStorage.getItem('wf_barcodeMap');
+  if (url) {
+    state.scriptUrl = url;
+    document.getElementById('scriptUrl').value = url;
+  }
+  if (map) {
+    state.barcodeMap = JSON.parse(map);
+    // Populate textarea
+    const lines = state.barcodeMap.map(b => `${b.barcode}|${b.name}|${b.section}|${b.max}`).join('\n');
+    document.getElementById('barcodeMap').value = lines;
+  }
+  // Auto-start if configured
+  if (url && state.barcodeMap.length > 0) {
+    showScreen('scanScreen');
+    startCamera();
+  }
+}
+
+// ── SETUP ────────────────────────────────────────
+function saveSetup() {
+  const url = document.getElementById('scriptUrl').value.trim();
+  const mapText = document.getElementById('barcodeMap').value.trim();
+
+  if (!url) { showToast('Please enter your Apps Script URL'); return; }
+
+  const lines = mapText.split('\n').filter(l => l.trim());
+  const map = [];
+  for (const line of lines) {
+    const parts = line.split('|');
+    if (parts.length < 3) continue;
+    map.push({
+      barcode: parts[0].trim(),
+      name: parts[1].trim(),
+      section: parts[2].trim(),
+      max: parseInt(parts[3]) || 2,
+    });
+  }
+
+  state.scriptUrl = url;
+  state.barcodeMap = map;
+  saveToStorage();
+
+  showScreen('scanScreen');
+  startCamera();
+}
+
+function loadDemo() {
+  state.scriptUrl = 'DEMO';
+  state.barcodeMap = DEMO_BARCODES;
+  showScreen('scanScreen');
+  startCamera();
+}
+
+function goToSetup() {
+  stopCamera();
+  showScreen('setupScreen');
+}
+
+// ── SCREENS ──────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── CAMERA / QUAGGA ──────────────────────────────
+let scannerRunning = false;
+let lastScan = '';
+let lastScanTime = 0;
+
+function startCamera() {
+  if (scannerRunning) return;
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: document.getElementById('cameraView'),
+      constraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    },
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader', 'code_39_reader'],
+      multiple: false,
+    },
+    locate: true,
+    frequency: 10,
+  }, (err) => {
+    if (err) {
+      console.error('Quagga init error:', err);
+      showToast('Camera error — use manual mode');
+      return;
+    }
+    Quagga.start();
+    scannerRunning = true;
+  });
+
+  Quagga.onDetected((result) => {
+    const code = result.codeResult.code;
+    const now = Date.now();
+    // Debounce: same code within 2s = ignore
+    if (code === lastScan && now - lastScanTime < 2000) return;
+    lastScan = code;
+    lastScanTime = now;
+
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(60);
+
+    handleBarcode(code);
+  });
+}
+
+function stopCamera() {
+  if (!scannerRunning) return;
+  Quagga.stop();
+  scannerRunning = false;
+}
+
+// ── BARCODE HANDLING ─────────────────────────────
+function handleBarcode(code) {
+  state.scannedBarcode = code;
+  const match = state.barcodeMap.find(b => b.barcode === code);
+
+  stopCamera();
+
+  if (match) {
+    state.currentPaper = match;
+    showConfirm(match, code);
+  } else {
+    showConfirm(null, code);
+  }
+}
+
+function showConfirm(paper, barcode) {
+  showScreen('confirmScreen');
+
+  const unknownCard = document.getElementById('unknownCard');
+  const qtySection  = document.getElementById('qtySection');
+  const saveBtn     = document.getElementById('saveBtn');
+
+  if (paper) {
+    unknownCard.style.display = 'none';
+    qtySection.style.display = 'flex';
+    saveBtn.style.display = 'flex';
+
+    document.getElementById('confirmPaperName').textContent = paper.name;
+    document.getElementById('confirmBarcode').textContent = `Barcode: ${barcode}`;
+
+    const tag = document.getElementById('confirmTag');
+    tag.style.display = 'inline-block';
+    if (paper.section === '24') {
+      tag.className = 'confirm-section-tag tag-24';
+      tag.textContent = '24″ Roll';
+    } else if (paper.section === '36') {
+      tag.className = 'confirm-section-tag tag-36';
+      tag.textContent = '36″ Roll';
+    } else {
+      tag.className = 'confirm-section-tag tag-bp';
+      tag.textContent = 'Blueprint';
+    }
+
+    document.getElementById('maxHint').textContent = `Max capacity: ${paper.max} rolls`;
+    document.getElementById('qtyInput').value = 0;
+    updateStatusPreview();
+
+  } else {
+    unknownCard.style.display = 'flex';
+    qtySection.style.display = 'none';
+    saveBtn.style.display = 'none';
+    document.getElementById('confirmPaperName').textContent = 'Unknown Barcode';
+    document.getElementById('confirmBarcode').textContent = '';
+    document.getElementById('confirmTag').style.display = 'none';
+    document.getElementById('unknownCode').textContent = barcode;
+  }
+}
+
+// ── QTY ──────────────────────────────────────────
+function changeQty(delta) {
+  const input = document.getElementById('qtyInput');
+  const val = Math.max(0, (parseInt(input.value) || 0) + delta);
+  input.value = val;
+  updateStatusPreview();
+}
+
+function updateStatusPreview() {
+  const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+  const preview = document.getElementById('statusPreview');
+  const paper = state.currentPaper;
+  const max = paper ? paper.max : 99;
+
+  if (qty === 0) {
+    preview.className = 'status-preview status-empty';
+    preview.textContent = '🔴 Order Now — 0 in stock';
+  } else if (qty === 1) {
+    preview.className = 'status-preview status-low';
+    preview.textContent = '🟡 Low — only 1 left';
+  } else {
+    preview.className = 'status-preview status-ok';
+    preview.textContent = `🟢 OK — ${qty} of ${max} in stock`;
+  }
+}
+
+// ── SAVE ─────────────────────────────────────────
+async function saveQty() {
+  const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+  const paper = state.currentPaper;
+  if (!paper) return;
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.textContent = '⏳  Saving…';
+  saveBtn.disabled = true;
+
+  if (state.scriptUrl === 'DEMO') {
+    await new Promise(r => setTimeout(r, 800));
+    showSuccess(paper.name, qty);
+    saveBtn.textContent = '↑  Update Google Sheet';
+    saveBtn.disabled = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(state.scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify({ barcode: paper.barcode, name: paper.name, qty }),
+      headers: { 'Content-Type': 'application/json' },
+      redirect: 'follow',
+    });
+
+    const result = await response.json();
+
+    if (result.status === 'ok') {
+      showSuccess(paper.name, qty);
+    } else {
+      showToast('⚠ Paper not found in sheet. Check barcode map.');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('⚠ Connection error. Check your Apps Script URL.');
+  }
+
+  saveBtn.textContent = '↑  Update Google Sheet';
+  saveBtn.disabled = false;
+}
+
+function showSuccess(paperName, qty) {
+  showScreen('successScreen');
+  const section = state.currentPaper?.section;
+  const sectionName = section === 'BP' ? 'Blueprint' : `${section}″ Roll`;
+  document.getElementById('successDetail').innerHTML =
+    `<strong>${paperName}</strong><br>${sectionName} &nbsp;·&nbsp; Qty set to <strong>${qty}</strong>`;
+}
+
+// ── MANUAL ───────────────────────────────────────
+function showManual() {
+  stopCamera();
+  showScreen('manualScreen');
+  const list = document.getElementById('paperList');
+  list.innerHTML = '';
+
+  const sections = [
+    { key: '24', label: '24″ Rolls', tagClass: 'tag-24' },
+    { key: '36', label: '36″ Rolls', tagClass: 'tag-36' },
+    { key: 'BP', label: 'Blueprint Paper', tagClass: 'tag-bp' },
+  ];
+
+  for (const sec of sections) {
+    const papers = state.barcodeMap.filter(b => b.section === sec.key);
+    if (!papers.length) continue;
+
+    const div = document.createElement('div');
+    div.className = 'section-divider';
+    div.textContent = sec.label;
+    list.appendChild(div);
+
+    for (const paper of papers) {
+      const item = document.createElement('div');
+      item.className = 'paper-item';
+      item.innerHTML = `
+        <div class="paper-item-name">${paper.name}</div>
+        <div class="paper-item-tag ${sec.tagClass}">${sec.key === 'BP' ? 'Blueprint' : sec.key + '″'}</div>
+      `;
+      item.onclick = () => {
+        state.currentPaper = paper;
+        state.scannedBarcode = paper.barcode;
+        showConfirm(paper, paper.barcode);
+      };
+      list.appendChild(item);
+    }
+  }
+}
+
+// ── NAV ──────────────────────────────────────────
+function backToScan() {
+  showScreen('scanScreen');
+  startCamera();
+}
+
+// ── ACCORDION ────────────────────────────────────
+function toggleAccordion() {
+  document.getElementById('instructionAccordion').classList.toggle('open');
+}
+
+// ── TOAST ────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── INIT ─────────────────────────────────────────
+loadFromStorage();
+</script>
+</body>
+</html>
