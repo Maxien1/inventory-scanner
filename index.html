@@ -37,9 +37,9 @@
   .screen {
     display: none;
     flex-direction: column;
-    min-height: 100dvh;
-    height: auto;
-    overflow-y: scroll;
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
@@ -50,8 +50,6 @@
     padding: 60px 28px 60px;
     gap: 0;
     justify-content: flex-start;
-    height: auto;
-    min-height: 100dvh;
   }
 
   .welcome-eyebrow {
@@ -136,8 +134,6 @@
     padding: 52px 24px 60px;
     gap: 18px;
     justify-content: flex-start;
-    height: auto;
-    min-height: 100dvh;
   }
 
   .setup-header {
@@ -352,7 +348,7 @@
   }
 
   /* ── CONFIRM SCREEN ── */
-  #confirmScreen { padding: 52px 20px 60px; gap: 16px; min-height: 100dvh; height: auto; }
+  #confirmScreen { padding: 52px 20px 60px; gap: 16px; }
 
   .confirm-back {
     display: flex; align-items: center; gap: 8px;
@@ -451,7 +447,7 @@
   .success-detail { font-size: 15px; color: var(--muted); line-height: 1.6; }
 
   /* ── MANUAL SCREEN ── */
-  #manualScreen { padding: 52px 20px 60px; gap: 16px; min-height: 100dvh; height: auto; }
+  #manualScreen { padding: 52px 20px 60px; gap: 16px; }
 
   .paper-list { display: flex; flex-direction: column; gap: 8px; }
 
